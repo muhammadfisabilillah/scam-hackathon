@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Analysis {
+  id           String   @id @default(cuid())
+  inputText    String
+  redactedText String?
+  riskScore    Int      @default(0)
+  verdict      String
+  summary      String?
+  createdAt    DateTime @default(now())
+
+  indicators Indicator[]
+  evidence   Evidence[]
+  urlScans   UrlScan[]
+  drafts     Draft[]
+
+  @@index([createdAt])
+}
+
+model Indicator {
+  id         String   @id @default(cuid())
+  analysisId String
+  type       String
+  value      String
+  confidence Float    @default(0)
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
+
+model Evidence {
+  id         String  @id @default(cuid())
+  analysisId String
+  type       String
+  title      String
+  detail     String
+  source     String?
+  weight     Float   @default(1)
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
+
+model UrlScan {
+  id               String  @id @default(cuid())
+  analysisId       String
+  originalUrl      String
+  finalUrl         String?
+  domain           String?
+  pageTitle        String?
+  screenshotPath   String?
+  hasPasswordField Boolean @default(false)
+  formsCount       Int     @default(0)
+  status           String  @default("PENDING")
+  error            String?
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
+
+model Draft {
+  id         String @id @default(cuid())
+  analysisId String
+  type       String
+  content    String
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
