@@ -178,7 +178,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       { type: "report", content: explanation.reportDraft },
     ];
 
-    const created = await prisma.$transaction(async (transaction) => {
+    let created: { id: string; inputText: string; redactedText: string | null; riskScore: number; createdAt: Date } | null = null;
+    try {
+      created = await prisma.$transaction(async (transaction) => {
       const analysis = await transaction.analysis.create({
         data: {
           id: analysisId,
@@ -239,15 +241,29 @@ export async function POST(request: Request): Promise<NextResponse> {
 
       return analysis;
     });
+    } catch (dbError) {
+      console.error(
+        "[ScamPilot] DB persistence failed.",
+        dbError instanceof Error ? dbError.message : dbError,
+      );
+    }
+
+    const createdSafe = created ?? {
+      id: analysisId,
+      inputText: text,
+      redactedText,
+      riskScore: assessment.score,
+      createdAt: new Date(),
+    };
 
     const result: AnalyzeResult = {
-      id: created.id,
-      inputText: created.inputText,
-      redactedText: created.redactedText,
-      riskScore: created.riskScore,
+      id: createdSafe.id,
+      inputText: createdSafe.inputText,
+      redactedText: createdSafe.redactedText,
+      riskScore: createdSafe.riskScore,
       verdict: assessment.verdict,
       summary: explanation.summary,
-      createdAt: created.createdAt.toISOString(),
+      createdAt: createdSafe.createdAt.toISOString(),
       indicators,
       evidence,
       drafts,
